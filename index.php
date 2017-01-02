@@ -1,4 +1,4 @@
 <?php
-    echo "hello world myapp";
-    phpinfo();
+    echo "neha";
+   
 ?>
