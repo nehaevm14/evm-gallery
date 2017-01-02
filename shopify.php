@@ -15,12 +15,11 @@ class ShopifyClient {
 	}
 
 	// Get the URL required to request authorization
-	public function getAuthorizeUrl($scope, $redirect_url='') 
-	{
-		$url = "http://{$this->shop_domain}/admin/oauth/authorize?client_id={$this->api_key}&scope=".urlencode($scope);
+	public function getAuthorizeUrl($scope, $redirect_url='') {
+		$url = "http://{$this->shop_domain}/admin/oauth/authorize?client_id={$this->api_key}&scope=" . urlencode($scope);
 		if ($redirect_url != '')
 		{
-			$url .= "&redirect_uri=".urlencode($redirect_url);
+			$url .= "&redirect_uri=" . urlencode($redirect_url);
 		}
 		return $url;
 	}
@@ -33,7 +32,6 @@ class ShopifyClient {
 		$response = $this->curlHttpApiRequest('POST', $url, '', $payload, array());
 		$response = json_decode($response, true);
 		if (isset($response['access_token']))
-			
 			return $response['access_token'];
 		return '';
 	}
@@ -48,7 +46,7 @@ class ShopifyClient {
 		return $this->shopApiCallLimitParam(1);
 	}
 
-	public function callsLeft()
+	public function callsLeft($response_headers)
 	{
 		return $this->callLimit() - $this->callsMade();
 	}
@@ -76,30 +74,18 @@ class ShopifyClient {
 
 	public function validateSignature($query)
 	{
-		if(!is_array($query) || empty($query['hmac']) || !is_string($query['hmac']))
+		if(!is_array($query) || empty($query['signature']) || !is_string($query['signature']))
 			return false;
 
-		$dataString = array();
-		foreach ($query as $key => $value) {
-			if(!in_array($key, array('shop', 'timestamp', 'code'))) continue;
-
-			$key = str_replace('=', '%3D', $key);
-			$key = str_replace('&', '%26', $key);
-			$key = str_replace('%', '%25', $key);
-
-			$value = str_replace('&', '%26', $value);
-			$value = str_replace('%', '%25', $value);
-
-			$dataString[] = $key . '=' . $value;
+		foreach($query as $k => $v) {
+			if($k != 'shop' && $k != 'code' && $k != 'timestamp') continue;
+			$signature[] = $k . '=' . $v;
 		}
-		sort($dataString);
-		
-		$string = implode("&", $dataString);
 
-		$signatureBin = mhash(MHASH_SHA256, $string, $this->secret);
-		$signature = bin2hex($signatureBin);
-		
-		return $query['hmac'] == $signature;
+		sort($signature);
+		$signature = md5($this->secret . implode('', $signature));
+
+		return $query['signature'] == $signature;
 	}
 
 	private function curlHttpApiRequest($method, $url, $query='', $payload='', $request_headers=array())
